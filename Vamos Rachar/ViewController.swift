@@ -9,18 +9,42 @@
 import UIKit
 
 class ViewController: UIViewController {
-    
 
     var km: String = ""
     var autonomia: String = ""
-    var consumoUser: [Float] = [0.0,0.0]
+    var consumoUser: [Float] = [UserDefaults.standard.object(forKey: "consumo0") as? Float ?? 0.0,UserDefaults.standard.object(forKey: "consumo1") as? Float ?? 0.0]
     let user: [String] = ["Usuário 01", "Usuário 02"]
     
     override func viewDidLoad() {
+        
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
+        
+        let tap = UITapGestureRecognizer(target: self.view, action: #selector(UIView.endEditing))
+        view.addGestureRecognizer(tap)
+        
     }
+    
+    @objc func keyboardWillShow(notification: NSNotification) {
+        guard let userInfo = notification.userInfo else {return}
+        guard let keyboardSize = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {return}
+        let keyboardFrame = keyboardSize.cgRectValue
+
+        if self.view.frame.origin.y == 0 {
+            self.view.frame.origin.y -= keyboardFrame.height
+        }
+    }
+
+    @objc func keyboardWillHide(notification: NSNotification) {
+        if self.view.frame.origin.y != 0 {
+            self.view.frame.origin.y = 0
+        }
+    }
+    
+    @IBOutlet weak var fundoLabel: UILabel!
     
     @IBOutlet weak var userX: UISegmentedControl!
     
@@ -32,25 +56,38 @@ class ViewController: UIViewController {
     
     @IBOutlet weak var entradaAutonomia: UITextField!
     
-    
-    func lerUsuario() {
-        // funcao para ler qual usuario foi selecionado no picker
+    @IBAction func compartilhar(_ sender: Any) {
+        
+        saidaConsumo.text = " Consumo Atual: \n\n" + "Usuário 01 = " + String(format: "%.2f", (UserDefaults.standard.object(forKey: "consumo0") as? Float ?? 0.0)) + " litros \n" + "Usuário 02 = " + String(format: "%.2f", (UserDefaults.standard.object(forKey: "consumo1") as? Float ?? 0.0)) + " litros"
+        shareResult()
     }
+    
+    @IBAction func deletaTudo(_ sender: Any) {
+        consumoUser[0] = 0.0
+        
+        UserDefaults.standard.set(consumoUser[0], forKey: "consumo0")
+        
+        consumoUser[1] = 0.0
+        
+        UserDefaults.standard.set(consumoUser[1], forKey: "consumo1")
+        
+        testeImagem()
+    }
+    
     func lerKm() {
         // funcao para ler quantidade de Km rodados pelo usuario
-        self.km = entradaKmRodados.text!
+        self.km = entradaKmRodados.text ?? "0"
     }
     func lerAutonomia() {
         // funcao para ler qual a autonomia do veiculo em Km/l
-        self.autonomia = entradaAutonomia.text!
+        self.autonomia = entradaAutonomia.text ?? "0"
     }
     
     @IBAction func clicarNoBotaoAdd(_ sender: Any) {
-        lerUsuario()
         lerKm()
         lerAutonomia()
         calcularConsumo()
-        apagaImagem()
+        testeImagem()
         
     }
     
@@ -63,34 +100,44 @@ class ViewController: UIViewController {
         let autonomiaFloat: Float
         autonomiaFloat = Float(autonomia)!
         
-        
-        
         let travel: Corrida
         travel = Corrida(user: userX.selectedSegmentIndex, km: kmFloat, autonomia: autonomiaFloat)
-        
         
         var consumo: Float
         consumo = travel.calculaConsumo()
         
         if travel.user == 0 {
             consumoUser[0] = consumoUser[0] + consumo
+            UserDefaults.standard.set(consumoUser[0], forKey: "consumo0")
         }
         
         if travel.user == 1 {
             consumoUser[1] = consumoUser[1] + consumo
+            UserDefaults.standard.set(consumoUser[1], forKey: "consumo1")
         }
-        
-        self.saidaConsumo.isHidden = false
-        saidaConsumo.text = " Consumo Atual: \n\n" + "Usuário 01 = " + String(format: "%.2f", consumoUser[0]) + " litros \n" + "Usuário 02 = " + String(format: "%.2f", consumoUser[1]) + " litros"
 
-        
         print("O consumo foi: ", consumo)
     }
     
-    func apagaImagem() {
-        // funcao para apagar a imagem do carro na tela
-        self.imagemCarro.isHidden = true
-    }
+    func shareResult() {
+        let shareText = [ saidaConsumo.text ]
+        let activityViewController = UIActivityViewController(activityItems: shareText as [Any], applicationActivities: nil)
+        activityViewController.popoverPresentationController?.sourceView = self.view
 
+        self.present(activityViewController, animated: true, completion: nil)
+    }
+    
+    func testeImagem() {
+        // funcao para apagar a imagem do carro na tela
+        if consumoUser[0] > 0.0 || consumoUser[1] > 0.0{
+           self.imagemCarro.isHidden = true
+            self.saidaConsumo.isHidden = false
+            saidaConsumo.text = " Consumo Atual: \n\n" + "Usuário 01 = " + String(format: "%.2f", (UserDefaults.standard.object(forKey: "consumo0") as? Float ?? 0.0)) + " litros \n" + "Usuário 02 = " + String(format: "%.2f", (UserDefaults.standard.object(forKey: "consumo1") as? Float ?? 0.0)) + " litros"
+        }
+        else{
+            self.imagemCarro.isHidden = false
+            self.saidaConsumo.isHidden = true
+        }
+    }
 }
 
